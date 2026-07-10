@@ -546,6 +546,9 @@ static FF_FILE * prvAllocFileHandle( FF_IOManager_t * pxIOManager,
             {
                 if( ulDirCluster == 0UL )
                 {
+                    /* FAT12/FAT16 mounts represent their fixed root directory
+                     * with cluster 1, so zero remains the lookup-failure
+                     * sentinel for every FAT type. */
                     xError = FF_createERR( FF_ERR_DIR_INVALID_PATH, FF_ISDIREMPTY );
                 }
                 else
