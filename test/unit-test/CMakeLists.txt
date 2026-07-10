@@ -121,7 +121,7 @@ list( APPEND mock_list
       ${MODULE_ROOT_DIR}/include/ff_locking.h
       ${UNIT_TEST_DIR}/include/ff_dir_mock_subset.h
       ${MODULE_ROOT_DIR}/include/ff_fat.h
-      ${MODULE_ROOT_DIR}/include/ff_ioman.h
+      ${UNIT_TEST_DIR}/include/ff_ioman_mock_subset.h
       ${MODULE_ROOT_DIR}/include/ff_time.h )
 
 set( mock_include_list ${FAT_TEST_INCLUDE_DIRS} )

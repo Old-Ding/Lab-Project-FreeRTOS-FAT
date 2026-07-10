@@ -11,7 +11,7 @@
 
 #include "mock_ff_locking.h"
 #include "mock_ff_dir_mock_subset.h"
-#include "mock_ff_ioman.h"
+#include "mock_ff_ioman_mock_subset.h"
 #include "mock_ff_time.h"
 
 #include "ff_headers.h"
