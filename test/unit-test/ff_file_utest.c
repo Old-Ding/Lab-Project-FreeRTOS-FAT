@@ -109,6 +109,57 @@ void test_FF_Write_marks_file_modified_when_a_later_block_write_fails( void )
     TEST_ASSERT_BITS_HIGH( FF_VALID_FLAG_MODIFIED, xFile.ulValidFlags );
 }
 
+void test_FF_Write_marks_file_modified_when_cluster_write_precedes_traversal_error( void )
+{
+    FF_FILE xFile;
+    uint8_t pucData[ TEST_SECTOR_SIZE * TEST_SECTORS_PER_CLUSTER * 2U ];
+    FF_Error_t xTraverseError = FF_createERR( FF_ERR_IOMAN_DRIVER_FATAL_ERROR, FF_WRITECLUSTERS );
+
+    prvInitFile( &xFile );
+    memset( pucData, 0x5a, sizeof( pucData ) );
+
+    xFile.ulFileSize = sizeof( pucData );
+    xFile.ulObjectCluster = TEST_DATA_CLUSTER;
+    xFile.ulAddrCurrentCluster = TEST_DATA_CLUSTER;
+    xFile.ulChainLength = 3U;
+    xIOManager.xPartition.ucBlkFactor = 1U;
+
+    prvExpectValidHandleCheck();
+    FF_getMinorBlockEntry_ExpectAndReturn( &xIOManager, 0U, 1U, 0U );
+    FF_getClusterChainNumber_ExpectAndReturn( &xIOManager, 0U, 1U, 0U );
+    FF_Cluster2LBA_ExpectAndReturn( &xIOManager, TEST_DATA_CLUSTER, TEST_DATA_LBA );
+    FF_getMajorBlockNumber_ExpectAndReturn( &xIOManager, 0U, 1U, 0U );
+    FF_getMinorBlockNumber_ExpectAndReturn( &xIOManager, 0U, 1U, 0U );
+    FF_getClusterPosition_ExpectAndReturn( &xIOManager, 0U, 1U, 0U );
+    FF_getClusterChainNumber_ExpectAndReturn( &xIOManager, 0U, 1U, 0U );
+    FF_Cluster2LBA_ExpectAndReturn( &xIOManager, TEST_DATA_CLUSTER, TEST_DATA_LBA );
+    FF_getMajorBlockNumber_ExpectAndReturn( &xIOManager, 0U, 1U, 0U );
+    FF_getMinorBlockNumber_ExpectAndReturn( &xIOManager, 0U, 1U, 0U );
+    FF_LockFAT_Expect( &xIOManager );
+    FF_getFATEntry_ExpectAnyArgsAndReturn( TEST_DATA_CLUSTER + 1U );
+    FF_UnlockFAT_Expect( &xIOManager );
+    FF_ReleaseFATBuffers_ExpectAnyArgsAndReturn( FF_ERR_NONE );
+    FF_Cluster2LBA_ExpectAndReturn( &xIOManager, TEST_DATA_CLUSTER, TEST_DATA_LBA );
+    FF_BlockWrite_ExpectAndReturn( &xIOManager,
+                                   TEST_DATA_LBA,
+                                   TEST_SECTORS_PER_CLUSTER * 2U,
+                                   pucData,
+                                   pdFALSE,
+                                   FF_ERR_NONE );
+    FF_LockFAT_Expect( &xIOManager );
+    FF_TraverseFAT_ExpectAndReturn( &xIOManager,
+                                    TEST_DATA_CLUSTER,
+                                    2U,
+                                    NULL,
+                                    TEST_DATA_CLUSTER + 2U );
+    FF_TraverseFAT_IgnoreArg_pxError();
+    FF_TraverseFAT_ReturnThruPtr_pxError( &xTraverseError );
+    FF_UnlockFAT_Expect( &xIOManager );
+
+    TEST_ASSERT_EQUAL( xTraverseError, FF_Write( &xFile, 1U, sizeof( pucData ), pucData ) );
+    TEST_ASSERT_BITS_HIGH( FF_VALID_FLAG_MODIFIED, xFile.ulValidFlags );
+}
+
 void test_FF_Close_updates_modified_time_for_written_file_when_size_is_unchanged( void )
 {
     FF_FILE * pxFile = malloc( sizeof( *pxFile ) );

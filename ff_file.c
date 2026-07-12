@@ -1512,12 +1512,15 @@ static FF_Error_t FF_ExtendFile( FF_FILE * pxFile,
 
 static FF_Error_t FF_WriteClusters( FF_FILE * pxFile,
                                     uint32_t ulCount,
-                                    uint8_t * buffer )
+                                    uint8_t * buffer,
+                                    uint32_t * pulClustersWritten )
 {
     uint32_t ulSectors;
     uint32_t ulSequentialClusters = 0;
     uint32_t ulItemLBA;
     FF_Error_t xError = FF_ERR_NONE;
+
+    *pulClustersWritten = 0U;
 
     while( ulCount != 0 )
     {
@@ -1547,6 +1550,7 @@ static FF_Error_t FF_WriteClusters( FF_FILE * pxFile,
             break;
         }
 
+        *pulClustersWritten += ulSequentialClusters + 1U;
         ulCount -= ulSequentialClusters + 1;
 
         FF_LockFAT( pxFile->pxIOManager );
@@ -2376,6 +2380,7 @@ int32_t FF_Write( FF_FILE * pxFile,
             if( ulBytesLeft >= ulBytesPerCluster )
             {
                 uint32_t ulClusters;
+                uint32_t ulClustersWritten;
 
                 FF_SetCluster( pxFile, &xError );
 
@@ -2386,7 +2391,8 @@ int32_t FF_Write( FF_FILE * pxFile,
 
                 ulClusters = ( ulBytesLeft / ulBytesPerCluster );
 
-                xError = FF_WriteClusters( pxFile, ulClusters, pucBuffer );
+                xError = FF_WriteClusters( pxFile, ulClusters, pucBuffer, &ulClustersWritten );
+                nBytesWritten += ulBytesPerCluster * ulClustersWritten;
 
                 if( FF_isERR( xError ) )
                 {
@@ -2396,7 +2402,6 @@ int32_t FF_Write( FF_FILE * pxFile,
                 nBytesToWrite = ulBytesPerCluster * ulClusters;
                 ulBytesLeft -= nBytesToWrite;
                 pucBuffer += nBytesToWrite;
-                nBytesWritten += nBytesToWrite;
                 pxFile->ulFilePointer += nBytesToWrite;
 
                 if( pxFile->ulFilePointer > pxFile->ulFileSize )
