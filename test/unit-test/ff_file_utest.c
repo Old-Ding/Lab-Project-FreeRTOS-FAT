@@ -11,6 +11,7 @@
 
 #include "mock_ff_locking.h"
 #include "mock_ff_dir_mock_subset.h"
+#include "mock_ff_fat.h"
 #include "mock_ff_ioman_mock_subset.h"
 #include "mock_ff_time.h"
 
@@ -22,6 +23,8 @@
 #define TEST_DIR_CLUSTER            ( 9U )
 #define TEST_FILE_SIZE              ( 123U )
 #define TEST_UPDATED_YEAR           ( 2026U )
+#define TEST_DATA_CLUSTER           ( 2U )
+#define TEST_DATA_LBA               ( 100U )
 
 static FF_IOManager_t xIOManager;
 
@@ -60,6 +63,50 @@ void setUp( void )
 
 void tearDown( void )
 {
+}
+
+void test_FF_Write_marks_file_modified_when_a_later_block_write_fails( void )
+{
+    FF_FILE xFile;
+    FF_Buffer_t xBuffer;
+    uint8_t pucSector[ TEST_SECTOR_SIZE ];
+    uint8_t pucData[ TEST_SECTOR_SIZE * 2U ];
+    FF_Error_t xWriteError = FF_createERR( FF_ERR_DEVICE_DRIVER_FAILED, FF_WRITE );
+
+    prvInitFile( &xFile );
+    memset( &xBuffer, 0, sizeof( xBuffer ) );
+    memset( pucData, 0x5a, sizeof( pucData ) );
+    xBuffer.pucBuffer = pucSector;
+
+    xIOManager.xPartition.ucBlkFactor = 1U;
+    xFile.ulFilePointer = 1U;
+    xFile.ulFileSize = TEST_SECTOR_SIZE * 2U;
+    xFile.ulObjectCluster = TEST_DATA_CLUSTER;
+    xFile.ulAddrCurrentCluster = TEST_DATA_CLUSTER;
+    xFile.ulChainLength = 1U;
+
+    prvExpectValidHandleCheck();
+    FF_getMinorBlockEntry_ExpectAndReturn( &xIOManager, 1U, 1U, 1U );
+    FF_getClusterChainNumber_ExpectAndReturn( &xIOManager, 1U, 1U, 0U );
+    FF_Cluster2LBA_ExpectAndReturn( &xIOManager, TEST_DATA_CLUSTER, TEST_DATA_LBA );
+    FF_getMajorBlockNumber_ExpectAndReturn( &xIOManager, 1U, 1U, 0U );
+    FF_getMinorBlockNumber_ExpectAndReturn( &xIOManager, 1U, 1U, 0U );
+    FF_GetBuffer_ExpectAndReturn( &xIOManager, TEST_DATA_LBA, FF_MODE_WRITE, &xBuffer );
+    FF_ReleaseBuffer_ExpectAndReturn( &xIOManager, &xBuffer, FF_ERR_NONE );
+    FF_getClusterPosition_ExpectAndReturn( &xIOManager, TEST_SECTOR_SIZE, 1U, TEST_SECTOR_SIZE );
+    FF_getClusterChainNumber_ExpectAndReturn( &xIOManager, TEST_SECTOR_SIZE, 1U, 0U );
+    FF_Cluster2LBA_ExpectAndReturn( &xIOManager, TEST_DATA_CLUSTER, TEST_DATA_LBA );
+    FF_getMajorBlockNumber_ExpectAndReturn( &xIOManager, TEST_SECTOR_SIZE, 1U, 1U );
+    FF_getMinorBlockNumber_ExpectAndReturn( &xIOManager, TEST_SECTOR_SIZE, 1U, 0U );
+    FF_BlockWrite_ExpectAndReturn( &xIOManager,
+                                   TEST_DATA_LBA + 1U,
+                                   1U,
+                                   &pucData[ TEST_SECTOR_SIZE - 1U ],
+                                   pdFALSE,
+                                   xWriteError );
+
+    TEST_ASSERT_EQUAL( xWriteError, FF_Write( &xFile, 1U, sizeof( pucData ), pucData ) );
+    TEST_ASSERT_BITS_HIGH( FF_VALID_FLAG_MODIFIED, xFile.ulValidFlags );
 }
 
 void test_FF_Close_updates_modified_time_for_written_file_when_size_is_unchanged( void )

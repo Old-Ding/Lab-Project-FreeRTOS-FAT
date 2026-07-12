@@ -2465,10 +2465,14 @@ int32_t FF_Write( FF_FILE * pxFile,
                 break;
             }
 
-            FF_WritePartial( pxFile, ulItemLBA, 0, ulBytesLeft, pucBuffer, &xError );
-            nBytesWritten += ulBytesLeft;
+            nBytesWritten += FF_WritePartial( pxFile, ulItemLBA, 0, ulBytesLeft, pucBuffer, &xError );
         }
         while( pdFALSE );
+    }
+
+    if( nBytesWritten > 0U )
+    {
+        pxFile->ulValidFlags |= FF_VALID_FLAG_MODIFIED;
     }
 
     if( FF_isERR( xError ) )
@@ -2477,11 +2481,6 @@ int32_t FF_Write( FF_FILE * pxFile,
     }
     else
     {
-        if( nBytesWritten > 0U )
-        {
-            pxFile->ulValidFlags |= FF_VALID_FLAG_MODIFIED;
-        }
-
         lResult = ( int32_t ) ( nBytesWritten / ulElementSize );
     }
 

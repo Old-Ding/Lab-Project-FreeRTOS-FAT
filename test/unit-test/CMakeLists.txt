@@ -113,9 +113,9 @@ set( coverage_dep_list ${utest_name} )
 set( project_name "ff_file" )
 
 # =====================  Mocks  ================================================
-# Keep the ff_file unit focused on FF_Close().  The module is built with
-# function sections so the linker can discard unrelated file APIs and their
-# dependencies.
+# Keep the ff_file unit focused on metadata updates from FF_Write() and
+# FF_Close().  The module is built with function sections so the linker can
+# discard unrelated file APIs and their dependencies.
 set( mock_list "" )
 list( APPEND mock_list
       ${MODULE_ROOT_DIR}/include/ff_locking.h
